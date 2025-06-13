@@ -21,27 +21,47 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS configuration - Using environment variables for flexibility
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',')
-  : process.env.NODE_ENV === 'production' 
-    ? [
-        'https://ev-charger-git-main-ravigauta1121s-projects.vercel.app',
-        'https://yourdomain.com' // Keep this for when you add a custom domain
-      ] 
-    : [
-        'http://localhost:3000',    // Create React App default
-        'http://localhost:5173',   // Vite default
-        'http://localhost:8080',   // Vue CLI default
-        'http://localhost:4200'    // Angular CLI default
-      ];
-
-app.use(cors({
-  origin: allowedOrigins,
+// CORS configuration - Dynamic solution to handle Vercel deployments
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Define allowed origins
+    const allowedOrigins = process.env.ALLOWED_ORIGINS 
+      ? process.env.ALLOWED_ORIGINS.split(',')
+      : process.env.NODE_ENV === 'production' 
+        ? [
+            'https://ev-charger-ybd8.vercel.app', // Your current Vercel URL
+            'https://ev-charger-git-main-ravigauta1121s-projects.vercel.app', // Previous URL (backup)
+            'https://yourdomain.com' // Keep this for when you add a custom domain
+          ] 
+        : [
+            'http://localhost:3000',    // Create React App default
+            'http://localhost:5173',   // Vite default
+            'http://localhost:8080',   // Vue CLI default
+            'http://localhost:4200'    // Angular CLI default
+          ];
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow any Vercel deployment (ends with .vercel.app)
+    if (origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // Reject other origins
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));
