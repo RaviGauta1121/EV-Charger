@@ -21,16 +21,23 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS configuration - Fixed to include Vite's default port
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] 
+// CORS configuration - Using environment variables for flexibility
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : process.env.NODE_ENV === 'production' 
+    ? [
+        'https://ev-charger-git-main-ravigauta1121s-projects.vercel.app',
+        'https://yourdomain.com' // Keep this for when you add a custom domain
+      ] 
     : [
         'http://localhost:3000',    // Create React App default
         'http://localhost:5173',   // Vite default
         'http://localhost:8080',   // Vue CLI default
         'http://localhost:4200'    // Angular CLI default
-      ],
+      ];
+
+app.use(cors({
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
