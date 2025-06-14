@@ -21,12 +21,12 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS configuration - Fixed to include Vite's default port
+// CORS configuration
 app.use(
   cors({
     origin:
       process.env.NODE_ENV === "production"
-        ? ["https://yourdomain.com"]
+        ? ["https://ev-charger-five.vercel.app"]
         : [
             "http://localhost:3000", // Create React App default
             "http://localhost:5173", // Vite default
