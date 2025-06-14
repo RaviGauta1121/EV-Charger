@@ -1,6 +1,19 @@
 // src/controllers/chargerController.js
 const Charger = require('../models/Charger');
 
+// Define valid enum values (should match the model exactly)
+const VALID_CHARGER_TYPES = ['Slow', 'Fast', 'Rapid', 'Ultra-Fast'];
+const VALID_CONNECTOR_TYPES = [
+  'Type 1 (J1772)',
+  'Type 2 (Mennekes)',
+  'CCS1',
+  'CCS2',
+  'CHAdeMO',
+  'Tesla Supercharger',
+  'GB/T'
+];
+const VALID_STATUSES = ['Available', 'Occupied', 'Out of Service', 'Maintenance'];
+
 // @desc    Get all chargers
 // @route   GET /api/chargers
 // @access  Public
@@ -139,7 +152,9 @@ const createCharger = async (req, res) => {
       pricePerKwh,
       coordinates,
       amenities,
-      operatingHours
+      operatingHours,
+      description,
+      status
     } = req.body;
 
     // Manual validation with detailed error messages
@@ -159,28 +174,26 @@ const createCharger = async (req, res) => {
     }
 
     // Validate type enum
-    const validTypes = ['Slow', 'Fast', 'Rapid', 'Ultra-Fast'];
-    if (!validTypes.includes(type)) {
+    if (!VALID_CHARGER_TYPES.includes(type)) {
       return res.status(400).json({
         success: false,
-        message: `Invalid charger type. Must be one of: ${validTypes.join(', ')}`
+        message: `Invalid charger type. Must be one of: ${VALID_CHARGER_TYPES.join(', ')}`
       });
     }
 
     // Validate connectorType enum
-    const validConnectorTypes = [
-      'Type 1 (J1772)',
-      'Type 2 (Mennekes)',
-      'CCS1',
-      'CCS2',
-      'CHAdeMO',
-      'Tesla Supercharger',
-      'GB/T'
-    ];
-    if (!validConnectorTypes.includes(connectorType)) {
+    if (!VALID_CONNECTOR_TYPES.includes(connectorType)) {
       return res.status(400).json({
         success: false,
-        message: `Invalid connector type. Must be one of: ${validConnectorTypes.join(', ')}`
+        message: `Invalid connector type. Must be one of: ${VALID_CONNECTOR_TYPES.join(', ')}`
+      });
+    }
+
+    // Validate status if provided
+    if (status && !VALID_STATUSES.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`
       });
     }
 
@@ -192,6 +205,14 @@ const createCharger = async (req, res) => {
       });
     }
 
+    // Validate pricePerKwh if provided
+    if (pricePerKwh !== undefined && pricePerKwh < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Price per kWh cannot be negative'
+      });
+    }
+
     // Create charger object
     const chargerData = {
       name: name.trim(),
@@ -199,15 +220,28 @@ const createCharger = async (req, res) => {
       type,
       connectorType,
       power: Number(power),
-      createdBy: req.user._id // Fixed: use _id instead of userId
+      createdBy: req.user._id
     };
 
     // Add optional fields if provided
-    if (pricePerKwh !== undefined) {
-      chargerData.pricePerKwh = Number(pricePerKwh);
-    }
+    if (status) chargerData.status = status;
+    if (pricePerKwh !== undefined) chargerData.pricePerKwh = Number(pricePerKwh);
+    if (description) chargerData.description = description.trim();
 
-    if (coordinates && coordinates.latitude && coordinates.longitude) {
+    if (coordinates && coordinates.latitude !== null && coordinates.longitude !== null) {
+      // Validate coordinates
+      if (coordinates.latitude < -90 || coordinates.latitude > 90) {
+        return res.status(400).json({
+          success: false,
+          message: 'Latitude must be between -90 and 90'
+        });
+      }
+      if (coordinates.longitude < -180 || coordinates.longitude > 180) {
+        return res.status(400).json({
+          success: false,
+          message: 'Longitude must be between -180 and 180'
+        });
+      }
       chargerData.coordinates = {
         latitude: Number(coordinates.latitude),
         longitude: Number(coordinates.longitude)
@@ -246,7 +280,7 @@ const createCharger = async (req, res) => {
       const validationErrors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
+        message: 'Validation failed: ' + validationErrors.join(', '),
         errors: validationErrors
       });
     }
@@ -285,31 +319,59 @@ const updateCharger = async (req, res) => {
     }
 
     // Validate connectorType if it's being updated
-    if (req.body.connectorType) {
-      const validConnectorTypes = [
-        'Type 1 (J1772)',
-        'Type 2 (Mennekes)',
-        'CCS1',
-        'CCS2',
-        'CHAdeMO',
-        'Tesla Supercharger',
-        'GB/T'
-      ];
-      if (!validConnectorTypes.includes(req.body.connectorType)) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid connector type. Must be one of: ${validConnectorTypes.join(', ')}`
-        });
-      }
+    if (req.body.connectorType && !VALID_CONNECTOR_TYPES.includes(req.body.connectorType)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid connector type. Must be one of: ${VALID_CONNECTOR_TYPES.join(', ')}`
+      });
     }
 
     // Validate type if it's being updated
-    if (req.body.type) {
-      const validTypes = ['Slow', 'Fast', 'Rapid', 'Ultra-Fast'];
-      if (!validTypes.includes(req.body.type)) {
+    if (req.body.type && !VALID_CHARGER_TYPES.includes(req.body.type)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid charger type. Must be one of: ${VALID_CHARGER_TYPES.join(', ')}`
+      });
+    }
+
+    // Validate status if it's being updated
+    if (req.body.status && !VALID_STATUSES.includes(req.body.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`
+      });
+    }
+
+    // Validate power if it's being updated
+    if (req.body.power && (req.body.power < 1 || req.body.power > 350)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Power must be between 1 and 350 kW'
+      });
+    }
+
+    // Validate pricePerKwh if it's being updated
+    if (req.body.pricePerKwh !== undefined && req.body.pricePerKwh < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Price per kWh cannot be negative'
+      });
+    }
+
+    // Validate coordinates if they're being updated
+    if (req.body.coordinates) {
+      if (req.body.coordinates.latitude !== null && 
+          (req.body.coordinates.latitude < -90 || req.body.coordinates.latitude > 90)) {
         return res.status(400).json({
           success: false,
-          message: `Invalid charger type. Must be one of: ${validTypes.join(', ')}`
+          message: 'Latitude must be between -90 and 90'
+        });
+      }
+      if (req.body.coordinates.longitude !== null && 
+          (req.body.coordinates.longitude < -180 || req.body.coordinates.longitude > 180)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Longitude must be between -180 and 180'
         });
       }
     }
@@ -340,7 +402,7 @@ const updateCharger = async (req, res) => {
       const validationErrors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
+        message: 'Validation failed: ' + validationErrors.join(', '),
         errors: validationErrors
       });
     }
@@ -411,12 +473,11 @@ const deleteCharger = async (req, res) => {
 const updateChargerStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const validStatuses = ['Available', 'Occupied', 'Out of Service', 'Maintenance'];
 
-    if (!validStatuses.includes(status)) {
+    if (!VALID_STATUSES.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+        message: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`
       });
     }
 

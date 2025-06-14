@@ -37,6 +37,24 @@ const router = createRouter({
       name: "MapPage",
       component: () => import("../views/MapPage.vue"),
       meta: { requiresAuth: true },
+    }, {
+      path: "/profile",
+      name: "profile",
+      component: () => import("../components/Profile.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/bookings",
+      name: "bookings",
+      component: () => import("../components/Bookings.vue"),
+      meta: { requiresAuth: true },
+    },
+
+     {
+      path: "/settings",
+      name: "settings",
+      component: () => import("../components/Settings.vue"),
+      meta: { requiresAuth: true },
     },
   ],
 });
