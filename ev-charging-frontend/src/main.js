@@ -108,4 +108,17 @@ if (process.env.NODE_ENV === "development") {
   };
 }
 
-app.mount("#app");
+// 🌐 Wake up backend before mounting the app
+console.log("🔄 Waking up backend server...");
+fetch("https://ev-charger-8rud.onrender.com/health")
+  .then((res) => res.json())
+  .then((data) => {
+    console.log("✅ Backend awake:", data.message);
+    app.mount("#app");
+  })
+  .catch((error) => {
+    console.error("❌ Failed to wake up backend:", error);
+    // Mount the app anyway, but show a warning
+    console.warn("⚠️ Mounting app without backend confirmation");
+    app.mount("#app");
+  });
