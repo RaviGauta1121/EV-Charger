@@ -110,14 +110,32 @@ if (process.env.NODE_ENV === "development") {
 
 // 🌐 Wake up backend before mounting the app
 console.log("🔄 Waking up backend server...");
-fetch("https://ev-charger-8rud.onrender.com/health")
-  .then((res) => res.json())
+fetch("https://ev-charger-8rud.onrender.com/health", {
+  method: 'GET',
+  mode: 'cors',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+  .then((res) => {
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    return res.json();
+  })
   .then((data) => {
     console.log("✅ Backend awake:", data.message);
     app.mount("#app");
   })
   .catch((error) => {
-    console.error("❌ Failed to wake up backend:", error);
+    console.error("❌ Failed to wake up backend:", error.message);
+    
+    // Check if it's a CORS error
+    if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+      console.warn("🚫 CORS error detected - backend needs CORS configuration");
+      console.warn("📝 Configure CORS on your backend to allow: https://ev-charger-ybd8.vercel.app");
+    }
+    
     // Mount the app anyway, but show a warning
     console.warn("⚠️ Mounting app without backend confirmation");
     app.mount("#app");
