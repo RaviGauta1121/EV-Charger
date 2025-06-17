@@ -21,13 +21,10 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS configuration - Updated with your actual Vercel domain
+// CORS configuration - Fixed to include Vite's default port
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? [
-        'https://ev-charger-ybd8.vercel.app',  // Your actual Vercel domain
-        'https://yourdomain.com'               // Keep this if you have another domain
-      ] 
+    ? ['https://yourdomain.com'] 
     : [
         'http://localhost:3000',    // Create React App default
         'http://localhost:5173',   // Vite default
@@ -36,23 +33,8 @@ app.use(cors({
       ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
-
-// Handle preflight requests explicitly
-app.options('*', cors());
-
-// Keep service awake on Render free tier
-if (process.env.NODE_ENV === 'production' && process.env.RENDER_EXTERNAL_URL) {
-  const keepAlive = () => {
-    fetch(process.env.RENDER_EXTERNAL_URL + '/health')
-      .then(res => console.log('Keep-alive ping successful'))
-      .catch(err => console.log('Keep-alive ping failed:', err.message));
-  };
-  
-  // Ping every 14 minutes
-  setInterval(keepAlive, 14 * 60 * 1000);
-}
 
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));
@@ -67,22 +49,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'EV Charging Station API is running!',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// Root endpoint
-app.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Welcome to EV Charging Station API',
-    version: '1.0.0',
-    endpoints: {
-      health: '/health',
-      auth: '/api/auth',
-      chargers: '/api/chargers'
-    }
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -90,18 +57,17 @@ app.get('/', (req, res) => {
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found',
-    path: req.originalUrl
+    message: 'Route not found'
   });
 });
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
-  res.status(err.status || 500).json({
+  console.error(err.stack);
+  res.status(500).json({
     success: false,
     message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    error: process.env.NODE_ENV === 'development' ? err.message : {}
   });
 });
 
