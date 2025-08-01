@@ -46,7 +46,7 @@ const router = createRouter({
     {
       path: "/bookings",
       name: "bookings",
-      component: () => import("../components/Bookings.vue"),
+      component: () => import("../components/Booking.vue"),
       meta: { requiresAuth: true },
     },
 
@@ -55,7 +55,13 @@ const router = createRouter({
       name: "settings",
       component: () => import("../components/Settings.vue"),
       meta: { requiresAuth: true },
-    },
+    },{
+  path: "/booking",
+  name: "Booking",
+  component: () => import("../components/Booking.vue"),
+  meta: { requiresAuth: true },
+},
+
   ],
 });
 
