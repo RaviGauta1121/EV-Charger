@@ -190,7 +190,7 @@
                     <div class="progress-bar bg-success" :style="{ width: networkUptime + '%' }"></div>
                   </div>
                 </div>
-                
+
                 <div class="metric-item mt-4">
                   <div class="metric-label">Average Response Time</div>
                   <div class="metric-value text-info">{{ avgResponseTime }}ms</div>
@@ -363,18 +363,24 @@
             </div>
           </div>
         </div>
+        
       </div>
+      
     </div>
+    <Footer />
   </div>
+  
 </template>
-
 <script>
 import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { useChargerStore } from '../store'
-import { useToast } from 'vue-toastification'
+import { useToast } from 'vue-toastification' ;
+import Footer from '@/components/Footer.vue';
 
 export default {
-  name: 'Dashboard',
+  name: 'Dashboard',components: {
+    Footer // Register Footer component
+  },
   setup() {
     const chargerStore = useChargerStore()
     const toast = useToast()
@@ -404,11 +410,11 @@ export default {
     const allStatuses = computed(() => {
       const chargersArray = chargers.value
       if (!Array.isArray(chargersArray)) return []
-      
+
       const statuses = chargersArray
         .map(charger => charger?.status)
         .filter(status => status !== undefined)
-      
+
       return [...new Set(statuses)]
     })
 
@@ -416,19 +422,19 @@ export default {
     const debugCounts = computed(() => {
       const chargersArray = chargers.value
       if (!Array.isArray(chargersArray)) return { available: 0, occupied: 0, maintenance: 0 }
-      
+
       const counts = { available: 0, occupied: 0, maintenance: 0 }
-      
+
       chargersArray.forEach(charger => {
         if (!charger || !charger.status) return
-        
+
         const status = charger.status.toLowerCase().trim()
-        
+
         if (status === 'available') counts.available++
         else if (status === 'occupied') counts.occupied++
         else if (status === 'maintenance') counts.maintenance++
       })
-      
+
       return counts
     })
 
@@ -439,7 +445,7 @@ export default {
         console.warn('Chargers is not an array:', chargersArray)
         return 0
       }
-      
+
       return chargersArray.filter(charger => {
         if (!charger || !charger.status) return false
         const status = charger.status.toLowerCase().trim()
@@ -454,7 +460,7 @@ export default {
         console.warn('Chargers is not an array:', chargersArray)
         return 0
       }
-      
+
       return chargersArray.filter(charger => {
         if (!charger || !charger.status) return false
         const status = charger.status.toLowerCase().trim()
@@ -469,7 +475,7 @@ export default {
         console.warn('Chargers is not an array:', chargersArray)
         return 0
       }
-      
+
       return chargersArray.filter(charger => {
         if (!charger || !charger.status) return false
         const status = charger.status.toLowerCase().trim()
@@ -543,7 +549,7 @@ export default {
       console.log('Available:', availableChargers.value)
       console.log('Occupied:', occupiedChargers.value)
       console.log('Maintenance:', maintenanceChargers.value)
-      
+
       // Update chart when data changes
       nextTick(() => {
         updateChart()
@@ -577,13 +583,13 @@ export default {
       const now = new Date()
       const diff = now - timestamp
       const minutes = Math.floor(diff / 60000)
-      
+
       if (minutes < 1) return 'Just now'
       if (minutes < 60) return `${minutes}m ago`
-      
+
       const hours = Math.floor(minutes / 60)
       if (hours < 24) return `${hours}h ago`
-      
+
       const days = Math.floor(hours / 24)
       return `${days}d ago`
     }
@@ -613,7 +619,7 @@ export default {
       if (!canvas) return
 
       const ctx = canvas.getContext('2d')
-      
+
       // Simple pie chart implementation
       const data = [
         { label: 'Available', value: availableChargers.value, color: '#28a745' },
@@ -633,13 +639,13 @@ export default {
       let currentAngle = 0
       data.forEach(item => {
         const sliceAngle = (item.value / total) * 2 * Math.PI
-        
+
         ctx.beginPath()
         ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle)
         ctx.lineTo(centerX, centerY)
         ctx.fillStyle = item.color
         ctx.fill()
-        
+
         currentAngle += sliceAngle
       })
     }
@@ -650,7 +656,7 @@ export default {
         await chargerStore.fetchChargers()
         console.log('Chargers fetched successfully')
         console.log('Initial chargers:', chargers.value)
-        
+
         // Initialize chart
         nextTick(() => {
           updateChart()
@@ -754,6 +760,7 @@ export default {
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -776,19 +783,22 @@ export default {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.stat-card-primary { 
+.stat-card-primary {
   background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
   border-color: #90caf9;
 }
-.stat-card-success { 
+
+.stat-card-success {
   background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
   border-color: #a5d6a7;
 }
-.stat-card-danger { 
+
+.stat-card-danger {
   background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
   border-color: #ef9a9a;
 }
-.stat-card-warning { 
+
+.stat-card-warning {
   background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
   border-color: #ffe082;
 }
@@ -1016,10 +1026,21 @@ export default {
   flex-shrink: 0;
 }
 
-.activity-icon-success { background-color: #4caf50; }
-.activity-icon-warning { background-color: #ff9800; }
-.activity-icon-danger { background-color: #f44336; }
-.activity-icon-info { background-color: #2196f3; }
+.activity-icon-success {
+  background-color: #4caf50;
+}
+
+.activity-icon-warning {
+  background-color: #ff9800;
+}
+
+.activity-icon-danger {
+  background-color: #f44336;
+}
+
+.activity-icon-info {
+  background-color: #2196f3;
+}
 
 .activity-content {
   flex: 1;
@@ -1079,15 +1100,34 @@ export default {
   animation: pulse 2s infinite;
 }
 
-.status-online { background-color: #4caf50; }
-.status-warning { background-color: #ff9800; }
-.status-info { background-color: #ffffff; }
-.status-success { background-color: #4caf50; }
+.status-online {
+  background-color: #4caf50;
+}
+
+.status-warning {
+  background-color: #ff9800;
+}
+
+.status-info {
+  background-color: #ffffff;
+}
+
+.status-success {
+  background-color: #4caf50;
+}
 
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .status-info h6 {
@@ -1106,36 +1146,36 @@ export default {
   .dashboard-header {
     padding: 1.5rem 0;
   }
-  
+
   .dashboard-title {
     font-size: 2rem;
   }
-  
+
   .dashboard-subtitle {
     font-size: 1rem;
   }
-  
+
   .dashboard-actions {
     margin-top: 1rem;
   }
-  
+
   .stat-card-body {
     padding: 1.5rem;
   }
-  
+
   .stat-icon {
     font-size: 2rem;
     margin-right: 1rem;
   }
-  
+
   .stat-number {
     font-size: 2rem;
   }
-  
+
   .action-item {
     padding: 1rem;
   }
-  
+
   .action-icon {
     width: 40px;
     height: 40px;
@@ -1147,32 +1187,32 @@ export default {
   .dashboard-container {
     padding: 0;
   }
-  
+
   .container-fluid {
     padding-left: 1rem;
     padding-right: 1rem;
   }
-  
+
   .stat-card-body {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .stat-icon {
     margin-right: 0;
     margin-bottom: 1rem;
   }
-  
+
   .action-item {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .action-icon {
     margin-right: 0;
     margin-bottom: 1rem;
   }
-  
+
   .action-arrow {
     display: none;
   }
@@ -1183,16 +1223,28 @@ export default {
   animation: fadeInUp 0.6s ease-out;
 }
 
-.stat-card:nth-child(1) { animation-delay: 0.1s; }
-.stat-card:nth-child(2) { animation-delay: 0.2s; }
-.stat-card:nth-child(3) { animation-delay: 0.3s; }
-.stat-card:nth-child(4) { animation-delay: 0.4s; }
+.stat-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.stat-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.stat-card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.stat-card:nth-child(4) {
+  animation-delay: 0.4s;
+}
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1224,23 +1276,23 @@ export default {
     background-color: #fafafa;
     color: #212121;
   }
-  
+
   .card {
     background-color: #ffffff;
     border-color: #e0e0e0;
   }
-  
+
   .card-header {
     background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%) !important;
     border-bottom-color: #e0e0e0;
   }
-  
+
   .action-item {
     background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
     border-color: #e0e0e0;
     color: #212121;
   }
-  
+
   .status-indicator {
     background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
     border-color: #e0e0e0;
@@ -1249,12 +1301,13 @@ export default {
 
 /* Print Styles */
 @media print {
+
   .dashboard-header,
   .dashboard-actions,
   .debug-panel {
     display: none;
   }
-  
+
   .stat-card {
     break-inside: avoid;
     box-shadow: none;

@@ -1,13 +1,14 @@
 // src/app.js
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const partnershiprRoutes = require("./routes/partnership");
 
 // Route imports
-const authRoutes = require('./routes/auth');
-const chargerRoutes = require('./routes/chargers');
-const bookingRoutes = require('./routes/booking'); // Added booking routes
+const authRoutes = require("./routes/auth");
+const chargerRoutes = require("./routes/chargers");
+const bookingRoutes = require("./routes/booking"); // Added booking routes
 
 const app = express();
 
@@ -53,49 +54,52 @@ const limiter = rateLimit({
 app.use("/api", limiter);
 
 // Enhanced CORS configuration - keeping your working Vercel domain
-const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [
-      'https://ev-charger-ybd8.vercel.app', // Your working Vercel frontend
-      ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(",") : [])
-    ] 
-  : [
-      'http://localhost:3000',    // Create React App default
-      'http://localhost:5173',    // Vite default
-      'http://localhost:8080',    // Vue CLI default
-      'http://localhost:4200',    // Angular CLI default
-      'http://127.0.0.1:3000',    // Alternative localhost
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:8080',
-      'http://127.0.0.1:4200',
-      'https://ev-charger-ybd8.vercel.app' // Allow Vercel in dev too for testing
-    ];
+const allowedOrigins =
+  process.env.NODE_ENV === "production"
+    ? [
+        "https://ev-charger-ybd8.vercel.app", // Your working Vercel frontend
+        ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(",") : []),
+      ]
+    : [
+        "http://localhost:3000", // Create React App default
+        "http://localhost:5173", // Vite default
+        "http://localhost:8080", // Vue CLI default
+        "http://localhost:4200", // Angular CLI default
+        "http://127.0.0.1:3000", // Alternative localhost
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:4200",
+        "https://ev-charger-ybd8.vercel.app", // Allow Vercel in dev too for testing
+      ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.warn(`⚠️  CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With', 
-    'Accept', 
-    'Origin'
-  ],
-  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.warn(`⚠️  CORS blocked origin: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
+    optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
+  })
+);
 
 // Handle preflight requests explicitly
-app.options('*', cors());
+app.options("*", cors());
 
 // Enhanced Body parser middleware with error handling
 app.use(
@@ -118,20 +122,25 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Enhanced request logging for debugging
 app.use((req, res, next) => {
-  console.log(`📝 ${req.method} ${req.path} - Origin: ${req.get('Origin') || 'none'} - ${new Date().toISOString()}`);
+  console.log(
+    `📝 ${req.method} ${req.path} - Origin: ${
+      req.get("Origin") || "none"
+    } - ${new Date().toISOString()}`
+  );
   next();
 });
 
 // API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/chargers', chargerRoutes);
-app.use('/api/bookings', bookingRoutes); // Added booking routes
+app.use("/api/auth", authRoutes);
+app.use("/api/chargers", chargerRoutes);
+app.use("/api/bookings", bookingRoutes); // Added booking routes
+app.use('/api/partnerships', partnershiprRoutes);
 
 // Enhanced Health check endpoint
-app.get('/health', (req, res) => {
+app.get("/health", (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'EV Charging Station API is running!',
+    message: "EV Charging Station API is running!",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
     version: "1.0.0",
@@ -139,8 +148,8 @@ app.get('/health', (req, res) => {
     memory: process.memoryUsage(),
     cors: {
       allowedOrigins: allowedOrigins,
-      environment: process.env.NODE_ENV
-    }
+      environment: process.env.NODE_ENV,
+    },
   });
 });
 
@@ -179,7 +188,7 @@ app.get("/api", (req, res) => {
 });
 
 // Enhanced 404 handler
-app.use('*', (req, res) => {
+app.use("*", (req, res) => {
   console.log(`❌ 404 - Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({
     success: false,
@@ -198,13 +207,13 @@ app.use('*', (req, res) => {
 // Enhanced Global error handler
 app.use((err, req, res, next) => {
   console.error(`❌ Error on ${req.method} ${req.path}:`, err.stack);
-  
+
   // Handle CORS errors specifically
-  if (err.message === 'Not allowed by CORS') {
+  if (err.message === "Not allowed by CORS") {
     return res.status(403).json({
       success: false,
-      message: 'CORS policy violation - origin not allowed',
-      error: process.env.NODE_ENV === 'development' ? err.message : {}
+      message: "CORS policy violation - origin not allowed",
+      error: process.env.NODE_ENV === "development" ? err.message : {},
     });
   }
 
