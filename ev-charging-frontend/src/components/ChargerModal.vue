@@ -91,9 +91,9 @@
                 <label for="connectorType" class="form-label">Connector Type <span class="text-danger">*</span></label>
                 <select class="form-select" id="connectorType" v-model="formData.connectorType" required>
                   <option value="">Select connector</option>
-                  <option v-for="connector in connectorTypes" :key="connector" :value="connector">{{ connector }}
-                  </option>
+                  <option v-for="connector in connectorTypes" :key="connector" :value="connector">{{ connector }}</option>
                 </select>
+                <div class="form-text">Current: {{ formData.connectorType || 'None selected' }}</div>
               </div>
             </div>
 
@@ -104,12 +104,12 @@
               </div>
               <div class="col-md-4">
                 <label for="chargerPrice" class="form-label">
-                  Price per kWh ($)
+                  Price per kWh ($) <span class="text-danger">*</span>
                   <small class="text-muted" v-if="recommendedPrice">(Recommended: ${{ recommendedPrice }})</small>
                 </label>
                 <input type="number" class="form-control" id="chargerPrice" v-model.number="formData.pricePerKwh"
-                  :placeholder="'e.g., ' + (recommendedPrice || '0.25')" step="0.01" min="0">
-                <div class="form-text">Cannot be negative</div>
+                  :placeholder="'e.g., ' + (recommendedPrice || '0.25')" step="0.01" min="0" required>
+                <div class="form-text">Current value: ${{ formData.pricePerKwh || 0 }}</div>
               </div>
               <div class="col-md-4">
                 <label for="chargerStatus" class="form-label">Status</label>
@@ -152,8 +152,7 @@
                   <div class="form-check form-check-inline" v-for="amenity in availableAmenities" :key="amenity">
                     <input class="form-check-input" type="checkbox" :id="amenity.toLowerCase().replace(/\s+/g, '-')"
                       :value="amenity" v-model="formData.amenities">
-                    <label class="form-check-label" :for="amenity.toLowerCase().replace(/\s+/g, '-')">{{ amenity
-                    }}</label>
+                    <label class="form-check-label" :for="amenity.toLowerCase().replace(/\s+/g, '-')">{{ amenity }}</label>
                   </div>
                 </div>
               </div>
@@ -179,6 +178,12 @@
             <!-- Error Alert -->
             <div v-if="submitError" class="alert alert-danger mt-3" role="alert">
               <i class="fas fa-exclamation-triangle me-2"></i>{{ submitError }}
+            </div>
+
+            <!-- Debug Form Data -->
+            <div v-if="showDebugInfo" class="alert alert-info mt-3">
+              <h6>📋 Form Data Debug:</h6>
+              <pre>{{ JSON.stringify(formData, null, 2) }}</pre>
             </div>
           </form>
         </div>
@@ -218,24 +223,35 @@ export default {
     const chargerForm = ref(null)
     const showDebugInfo = ref(false)
 
-    // Static data arrays - aligned with backend enum values
+    // Static data arrays - EXACTLY matching backend enum values
     const availableAmenities = ['WiFi', 'Restroom', 'Restaurant', 'Shopping', 'Parking', 'Covered']
-    const chargerTypes = ['Slow', 'Fast', 'Rapid', 'Ultra-Fast'] // Fixed to match backend
-   const connectorTypes = ['Type 1 (J1772)', 'Type 2 (Mennekes)', 'CCS1', 'CCS2', 'CHAdeMO', 'Tesla Supercharger', 'GB/T']
+    const chargerTypes = ['Slow', 'Fast', 'Rapid', 'Ultra-Fast']
+    
+    // FIXED: Exact match with backend enum values
+    const connectorTypes = [
+      'Type 1 (J1772)',
+      'Type 2 (Mennekes)', 
+      'CCS1',
+      'CCS2',
+      'CHAdeMO',
+      'Tesla Supercharger',
+      'GB/T'
+    ]
+    
     const statusOptions = ['Available', 'Occupied', 'Out of Service', 'Maintenance']
 
-    // Updated pricing recommendations to match backend types
+    // Updated pricing recommendations
     const pricingRecommendations = { 'Slow': 0.20, 'Fast': 0.30, 'Rapid': 0.40, 'Ultra-Fast': 0.50 }
     const recommendedPrice = computed(() => pricingRecommendations[formData.type] || null)
 
-    // Form data - aligned with backend schema
+    // FIXED: Form data with proper field name matching backend
     const formData = reactive({
       name: '',
       location: '',
       type: '',
       power: null,
       connectorType: '',
-      pricePerKwh: 0.25, // Changed from 'price' to 'pricePerKwh'
+      pricePerKwh: 0.25, // This matches backend field name
       status: 'Available',
       networkProvider: '',
       coordinates: {
@@ -250,9 +266,7 @@ export default {
       description: ''
     })
 
-    const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/chargers`
-
-    // Validation
+    // Enhanced validation
     const validationErrors = computed(() => {
       const errors = []
       
@@ -263,6 +277,17 @@ export default {
       if (!formData.type) errors.push('Charger type is required')
       if (!formData.connectorType) errors.push('Connector type is required')
       if (!formData.power) errors.push('Power output is required')
+      if (formData.pricePerKwh === null || formData.pricePerKwh === undefined) errors.push('Price per kWh is required')
+      
+      // Validate connector type against exact backend enum
+      if (formData.connectorType && !connectorTypes.includes(formData.connectorType)) {
+        errors.push(`Invalid connector type: ${formData.connectorType}. Must be one of: ${connectorTypes.join(', ')}`)
+      }
+      
+      // Validate charger type against exact backend enum  
+      if (formData.type && !chargerTypes.includes(formData.type)) {
+        errors.push(`Invalid charger type: ${formData.type}. Must be one of: ${chargerTypes.join(', ')}`)
+      }
       
       // Numeric validations
       if (formData.power && (formData.power < 1 || formData.power > 350)) {
@@ -319,7 +344,12 @@ export default {
         if (parts.length !== 3) return false
         const payload = JSON.parse(atob(parts[1]))
         const isExpired = payload.exp && payload.exp * 1000 < Date.now()
-        console.log('🔍 Token validation:', { hasExpiry: !!payload.exp, expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'No expiry', isExpired, userId: payload.userId || payload.id || payload.sub })
+        console.log('🔍 Token validation:', { 
+          hasExpiry: !!payload.exp, 
+          expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'No expiry', 
+          isExpired, 
+          userId: payload.userId || payload.id || payload.sub 
+        })
         return !isExpired
       } catch (error) {
         console.error('❌ Token validation failed:', error)
@@ -327,24 +357,31 @@ export default {
       }
     }
 
-    const getAuthHeaders = () => {
-      const token = getAuthToken()
-      if (!token) throw new Error('Authentication required. Please log in again.')
-      if (!isTokenValid(token)) throw new Error('Your session has expired. Please log in again.')
-      return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
-    }
-
     const debugInfo = computed(() => {
       const token = getAuthToken()
       const info = {
-        hasToken: !!token, tokenPreview: token ? token.substring(0, 30) + '...' : 'No token',
+        hasToken: !!token,
+        tokenPreview: token ? token.substring(0, 30) + '...' : 'No token',
         isValid: token ? isTokenValid(token) : false,
-        localStorageKeys: Object.keys(localStorage).filter(key => key.toLowerCase().includes('token') || key.toLowerCase().includes('auth'))
+        localStorageKeys: Object.keys(localStorage).filter(key => 
+          key.toLowerCase().includes('token') || key.toLowerCase().includes('auth')
+        ),
+        formDataSummary: {
+          name: formData.name,
+          type: formData.type,
+          connectorType: formData.connectorType,
+          pricePerKwh: formData.pricePerKwh,
+          power: formData.power
+        }
       }
       if (token) {
         try {
           const payload = JSON.parse(atob(token.split('.')[1]))
-          info.tokenPayload = { userId: payload.userId || payload.id || payload.sub, email: payload.email, exp: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'No expiry' }
+          info.tokenPayload = {
+            userId: payload.userId || payload.id || payload.sub,
+            email: payload.email,
+            exp: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'No expiry'
+          }
         } catch (error) {
           info.tokenError = error.message
         }
@@ -352,14 +389,14 @@ export default {
       return info
     })
 
-    // Methods
+    // FIXED: Reset form with proper default values
     const resetForm = () => {
       formData.name = ''
       formData.location = ''
       formData.type = ''
       formData.power = null
       formData.connectorType = ''
-      formData.pricePerKwh = 0.25
+      formData.pricePerKwh = 0.25  // Set proper default
       formData.status = 'Available'
       formData.networkProvider = ''
       formData.coordinates.latitude = null
@@ -372,70 +409,99 @@ export default {
     }
 
     const updateRecommendedPrice = () => {
-      if (formData.type && !formData.pricePerKwh) {
-        formData.pricePerKwh = pricingRecommendations[formData.type]
+      if (formData.type && pricingRecommendations[formData.type]) {
+        // Only update if user hasn't set a custom price
+        if (!formData.pricePerKwh || formData.pricePerKwh === 0.25) {
+          formData.pricePerKwh = pricingRecommendations[formData.type]
+        }
       }
     }
 
+    // FIXED: Populate form with proper field mapping
     const populateForm = (chargerData) => {
       if (chargerData) {
+        console.log('📝 Populating form with data:', chargerData)
+        
         formData.name = chargerData.name || ''
         formData.location = chargerData.location || ''
         formData.type = chargerData.type || ''
         formData.power = chargerData.power || null
         formData.connectorType = chargerData.connectorType || ''
-        // Handle both price and pricePerKwh for backward compatibility
-        formData.pricePerKwh = chargerData.pricePerKwh || chargerData.price || 0.25
+        
+        // Handle both pricePerKwh and price for backward compatibility
+        formData.pricePerKwh = chargerData.pricePerKwh ?? chargerData.price ?? 0.25
+        
         formData.status = chargerData.status || 'Available'
         formData.networkProvider = chargerData.networkProvider || ''
-        formData.coordinates.latitude = chargerData.coordinates?.latitude || null
-        formData.coordinates.longitude = chargerData.coordinates?.longitude || null
+        formData.coordinates.latitude = chargerData.coordinates?.latitude ?? null
+        formData.coordinates.longitude = chargerData.coordinates?.longitude ?? null
         formData.amenities = Array.isArray(chargerData.amenities) ? [...chargerData.amenities] : []
         formData.operatingHours.open = chargerData.operatingHours?.open || '00:00'
         formData.operatingHours.close = chargerData.operatingHours?.close || '23:59'
         formData.description = chargerData.description || ''
+        
+        console.log('✅ Form populated with:', {
+          connectorType: formData.connectorType,
+          pricePerKwh: formData.pricePerKwh,
+          type: formData.type
+        })
       }
     }
 
+    // FIXED: Format data to match backend exactly  
     const formatDataForSubmission = () => {
       const data = { ...formData }
       
-      // Map pricePerKwh to price for backend compatibility
-      if (data.pricePerKwh !== undefined) {
-        data.price = data.pricePerKwh
-        delete data.pricePerKwh
-      }
+      console.log('📤 Formatting data for submission:', data)
       
-      // Clean up coordinates - remove if empty
+      // Clean up coordinates - remove if both are null
       if (data.coordinates.latitude === null && data.coordinates.longitude === null) {
         delete data.coordinates
-      } else {
-        // Ensure both coordinates are provided if one is provided
-        if (data.coordinates.latitude !== null && data.coordinates.longitude !== null) {
-          data.coordinates = {
-            latitude: Number(data.coordinates.latitude),
-            longitude: Number(data.coordinates.longitude)
-          }
-        } else {
-          delete data.coordinates
+      } else if (data.coordinates.latitude !== null && data.coordinates.longitude !== null) {
+        // Ensure both coordinates are provided and are numbers
+        data.coordinates = {
+          latitude: Number(data.coordinates.latitude),
+          longitude: Number(data.coordinates.longitude)
         }
+      } else {
+        // If only one coordinate is provided, remove coordinates object
+        delete data.coordinates
       }
       
       // Ensure amenities is array
       data.amenities = Array.isArray(data.amenities) ? data.amenities : []
       
+      // Ensure power is a number
+      if (data.power) {
+        data.power = Number(data.power)
+      }
+      
+      // Ensure pricePerKwh is a number
+      if (data.pricePerKwh !== null && data.pricePerKwh !== undefined) {
+        data.pricePerKwh = Number(data.pricePerKwh)
+      }
+      
       // Remove networkProvider if it's not part of backend schema
       delete data.networkProvider
       
+      // Remove any empty string values
+      Object.keys(data).forEach(key => {
+        if (data[key] === '') {
+          delete data[key]
+        }
+      })
+      
+      console.log('✅ Final formatted data:', data)
       return data
     }
 
     const handleSubmit = async () => {
       console.log('🔍 Starting handleSubmit...')
-      console.log('📋 Current form data:', formData)
+      console.log('📋 Current form data:', JSON.stringify(formData, null, 2))
 
       if (!isFormValid.value) {
         console.log('❌ Form validation failed:', validationErrors.value)
+        submitError.value = `Validation failed: ${validationErrors.value.join(', ')}`
         return
       }
 
@@ -452,6 +518,7 @@ export default {
 
         console.log('✅ Charger saved successfully:', result)
 
+        // Close modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('chargerModal'))
         if (modal) modal.hide()
 
@@ -467,11 +534,19 @@ export default {
         })
         
         let errorMessage = error.message || 'An unexpected error occurred. Please try again.'
-        if (error.message.includes('Authentication required')) errorMessage = 'Please log in to continue.'
-        else if (error.message.includes('session has expired')) errorMessage = 'Your session has expired. Please log in again.'
-        else if (error.message.includes('Not authorized')) errorMessage = 'You are not authorized to perform this action. Please log in again.'
-        else if (error.response?.data?.message) errorMessage = error.response.data.message
-        else if (error.response?.data?.error) errorMessage = error.response.data.error
+        
+        // Handle specific error cases
+        if (error.message.includes('Authentication required')) {
+          errorMessage = 'Please log in to continue.'
+        } else if (error.message.includes('session has expired')) {
+          errorMessage = 'Your session has expired. Please log in again.'
+        } else if (error.message.includes('Not authorized')) {
+          errorMessage = 'You are not authorized to perform this action. Please log in again.'
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message
+        } else if (error.response?.data?.error) {
+          errorMessage = error.response.data.error
+        }
         
         submitError.value = errorMessage
       } finally {
@@ -480,41 +555,76 @@ export default {
     }
 
     // Debug methods
-    const toggleDebug = () => showDebugInfo.value = !showDebugInfo.value
+    const toggleDebug = () => {
+      showDebugInfo.value = !showDebugInfo.value
+    }
 
     const setTestToken = () => {
-      const payload = { userId: '12345', email: 'test@example.com', exp: Math.floor(Date.now() / 1000) + 86400 }
+      const payload = {
+        userId: '12345',
+        email: 'test@example.com',
+        exp: Math.floor(Date.now() / 1000) + 86400 // 24 hours from now
+      }
       const header = btoa(JSON.stringify({ typ: 'JWT', alg: 'HS256' }))
       const payloadEncoded = btoa(JSON.stringify(payload))
       const testToken = `${header}.${payloadEncoded}.test-signature`
+      
       localStorage.setItem('authToken', testToken)
       localStorage.setItem('token', testToken)
+      
       console.log('✅ Test token set in localStorage')
       alert('Test token has been set. Try submitting the form now.')
     }
 
     const clearTokens = () => {
-      ['authToken', 'token', 'accessToken', 'jwt', 'Bearer'].forEach(key => localStorage.removeItem(key))
+      const tokenKeys = ['authToken', 'token', 'accessToken', 'jwt', 'Bearer']
+      tokenKeys.forEach(key => localStorage.removeItem(key))
       console.log('🗑️ All tokens cleared from localStorage')
       alert('All tokens have been cleared from localStorage.')
     }
 
     // Watchers
-    watch(() => props.charger, (newCharger) => {
-      if (newCharger && props.isEditMode) populateForm(newCharger)
-      else if (!props.isEditMode) resetForm()
-    }, { immediate: true, deep: true })
+    watch(
+      () => props.charger,
+      (newCharger) => {
+        if (newCharger && props.isEditMode) {
+          populateForm(newCharger)
+        } else if (!props.isEditMode) {
+          resetForm()
+        }
+      },
+      { immediate: true, deep: true }
+    )
 
-    watch(() => props.isEditMode, () => {
-      nextTick(() => { submitError.value = '' })
-    })
+    watch(
+      () => props.isEditMode,
+      () => {
+        nextTick(() => {
+          submitError.value = ''
+        })
+      }
+    )
 
     return {
-      loading, submitError, formData, chargerForm, showDebugInfo, debugInfo,
-      availableAmenities, chargerTypes, connectorTypes, statusOptions,
-      recommendedPrice, validationErrors, isFormValid,
-      resetForm, handleSubmit, updateRecommendedPrice,
-      toggleDebug, setTestToken, clearTokens
+      loading,
+      submitError,
+      formData,
+      chargerForm,
+      showDebugInfo,
+      debugInfo,
+      availableAmenities,
+      chargerTypes,
+      connectorTypes,
+      statusOptions,
+      recommendedPrice,
+      validationErrors,
+      isFormValid,
+      resetForm,
+      handleSubmit,
+      updateRecommendedPrice,
+      toggleDebug,
+      setTestToken,
+      clearTokens
     }
   }
 }
